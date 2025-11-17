@@ -130,6 +130,22 @@ class A2C(AbstractSolver):
             # only ONCE at EACH step in    #
             # an episode.                  # 
             ################################
+            action, prob, value = self.select_action(state)
+            next_state, reward, done, _ = self.step(action)
+
+            if done:
+                target = torch.tensor(reward, dtype=torch.float32)
+            else:
+                ns = torch.as_tensor(next_state, dtype=torch.float32)
+                _, next_value = self.actor_critic(ns)
+                target = reward + self.options.gamma * next_value
+            
+            advantage = target - value
+            self.update_actor_critic(advantage, prob, value)
+            state = next_state
+            if done:
+                break
+
 
     def actor_loss(self, advantage, prob):
         """
@@ -149,7 +165,9 @@ class A2C(AbstractSolver):
         """
         ################################
         #   YOUR IMPLEMENTATION HERE   #
-        ################################)
+        ################################
+        #return -(torch.log(prob + 1e-8) * advantage)
+        return -(torch.log(prob) * advantage)
 
     def critic_loss(self, advantage, value):
         """
@@ -165,6 +183,7 @@ class A2C(AbstractSolver):
         ################################
         #   YOUR IMPLEMENTATION HERE   #
         ################################
+        return -(advantage * value)
 
     def __str__(self):
         return "A2C"

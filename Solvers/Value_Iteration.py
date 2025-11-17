@@ -71,6 +71,19 @@ class ValueIteration(AbstractSolver):
             ################################
             #   YOUR IMPLEMENTATION HERE   #
             ################################
+            
+            action_n = np.zeros(self.env.action_space.n)
+            
+            for action in range(self.env.action_space.n):
+                for prob, next_state, reward, done in self.env.P[each_state][action]:
+                    action_n[action] += prob * (reward + self.options.gamma * self.V[next_state])
+            
+            # take the best action’s value
+            self.V[each_state] = np.max(action_n)
+            
+
+
+
 
         # Dont worry about this part
         self.statistics[Statistics.Rewards.value] = np.sum(self.V)
@@ -140,6 +153,13 @@ class ValueIteration(AbstractSolver):
             ################################
             #   YOUR IMPLEMENTATION HERE   #
             ################################
+            # Compute action values using one-step lookahead
+            
+            values = self.one_step_lookahead(state)
+
+            # take action with max expected val 
+            return int(np.argmax(values))
+            
             
 
         return policy_fn
@@ -192,6 +212,15 @@ class AsynchVI(ValueIteration):
         # Do a one-step lookahead to find the best action       #
         # Update the value function. Ref: Sutton book eq. 4.10. #
         #########################################################
+
+        state = self.pq.pop()
+
+        self.V[state] = np.max(self.one_step_lookahead(state))
+
+        for pred in self.pred[state]:
+            updated_val = np.max(self.one_step_lookahead(pred))
+            self.pq.update(pred, -abs(self.V[pred] - updated_val))
+        
 
         # you can ignore this part
         self.statistics[Statistics.Rewards.value] = np.sum(self.V)

@@ -35,7 +35,7 @@ class PolicyIteration(AbstractSolver):
 
             Use:
                 self.policy: [S, A] shaped matrix representing the policy.
-                             self.policy[s,a] denotes \pi(a|s)
+                             self.policy[s,a] denotes \\pi(a|s)
                              Note: Policy is determistic i.e., only one element in self.policy[s,:] is 1 rest are 0
                 self.env: OpenAI environment.
                     env.P represents the transition probabilities of the environment.
@@ -57,6 +57,11 @@ class PolicyIteration(AbstractSolver):
             ################################
             #   YOUR IMPLEMENTATION HERE   #
             ################################
+
+
+            action_values = self.one_step_lookahead(s)
+            best_action = np.argmax(action_values)
+            self.policy[s] = np.eye(self.env.action_space.n)[best_action]
 
 
         # In DP methods we don't interact with the environment so we will set the reward to be the sum of state values
@@ -91,7 +96,7 @@ class PolicyIteration(AbstractSolver):
 
         Use:
             self.policy: [S, A] shaped matrix representing the policy.
-                         self.policy[s,a] denotes \pi(a|s)
+                         self.policy[s,a] denotes \\pi(a|s)
                          Note: Policy is determistic i.e., only one element in self.policy[s,:] is 1 rest are 0
             self.env: OpenAI env. env.P represents the transition probabilities of the environment.
                 env.P[s][a] is a list of transition tuples (prob, next_state, reward, done).
@@ -103,6 +108,23 @@ class PolicyIteration(AbstractSolver):
         ################################
         #   YOUR IMPLEMENTATION HERE   #
         ################################
+
+        state_n = self.env.observation_space.n
+        #action_n = self.env.action_space.n
+
+        p_pi = np.zeros((state_n, state_n))
+        r_pi = np.zeros(state_n)
+
+        for state in range(state_n):
+            for action, action_prob in enumerate(self.policy[state]):
+                if action_prob > 0:
+                    for prob, next_state, reward, done in self.env.P[state][action]:
+                        p_pi[state, next_state] += action_prob * prob
+                        r_pi[state] += action_prob * prob * reward
+        
+        A = np.eye(state_n) - self.options.gamma * p_pi
+        self.V = np.linalg.solve(A, r_pi)
+
 
     def create_greedy_policy(self):
         """

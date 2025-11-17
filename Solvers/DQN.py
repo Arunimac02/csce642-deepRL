@@ -101,7 +101,21 @@ class DQN(AbstractSolver):
         ################################
         #   YOUR IMPLEMENTATION HERE   #
         ################################
+    
+        
+        nA = self.env.action_space.n
+        action_probs = np.ones(nA, dtype=float) * (self.options.epsilon / nA)
 
+        state_tensor = torch.as_tensor(state, dtype=torch.float32)
+    
+        q_values = self.model(state_tensor)
+        best_action = torch.argmax(q_values).item()
+
+        action_probs[best_action] += 1.0 - self.options.epsilon
+
+        return action_probs
+
+        
 
     def compute_target_values(self, next_states, rewards, dones):
         """
@@ -113,6 +127,19 @@ class DQN(AbstractSolver):
         ################################
         #   YOUR IMPLEMENTATION HERE   #
         ################################
+        
+        next_states = torch.as_tensor(next_states, dtype=torch.float32)
+        rewards = torch.as_tensor(rewards, dtype=torch.float32)
+        dones = torch.as_tensor(dones, dtype=torch.float32)
+
+        
+        q_next = self.target_model(next_states)
+        max_q_next, _ = torch.max(q_next, dim=1)
+
+        target_q = rewards + self.options.gamma * max_q_next * (1 - dones)
+
+        return target_q
+        
 
 
     def replay(self):
@@ -181,13 +208,34 @@ class DQN(AbstractSolver):
                 target estimator every N steps (HINT: to be done across episodes)
         """
 
-        # Reset the environment
+
         state, _ = self.env.reset()
 
         for _ in range(self.options.steps):
-            ################################
-            #   YOUR IMPLEMENTATION HERE   #
-            ################################
+        
+            
+            action_probs=self.epsilon_greedy(state)
+            action = np.random.choice(np.arange(self.env.action_space.n), p=action_probs)
+
+            
+            next_state, reward, done, _ = self.step(action)
+
+            
+            self.memorize(state, action, reward, next_state, done)
+            state = next_state
+
+            if len(self.replay_memory) > self.options.batch_size:
+                self.replay()
+            
+
+            if done:
+                self.update_target_model()
+                break
+
+            if len(self.replay_memory) > self.options.batch_size:
+                self.replay()
+
+            
 
 
     def __str__(self):
